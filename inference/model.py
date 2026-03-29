@@ -119,11 +119,13 @@ class ParallelEmbedding(nn.Module):
         """
         if world_size > 1:
             mask = (x < self.vocab_start_idx) | (x >= self.vocab_end_idx)
-            x = x - self.vocab_start_idx
-            x[mask] = 0
-        y = F.embedding(x, self.weight)
+            x_local = x - self.vocab_start_idx
+            x_local = x_local.masked_fill(mask, 0)
+        else:
+            x_local = x
+        y = F.embedding(x_local, self.weight)
         if world_size > 1:
-            y[mask] = 0
+            y = y.masked_fill(mask.unsqueeze(-1), 0)
             dist.all_reduce(y)
         return y
 
